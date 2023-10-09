@@ -61,7 +61,7 @@ You should now have a dedicated Mac host running Parallels Desktop and with two 
 * Run in the terminal
 
   ```bash
-  $ terraform output -raw ssh_private_key > private.key 
+  $ terraform output -raw ssh_private_key > private.key & chmod 0600 private.key
   ```
 
 * Get the IP for the host by running in terminal

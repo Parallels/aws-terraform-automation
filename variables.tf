@@ -58,3 +58,18 @@ variable "use_intel" {
   type    = bool
   default = false
 }
+
+variable "parallels_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "parallels_user_email" {
+  type      = string
+  sensitive = true
+}
+
+variable "parallels_user_password" {
+  type      = string
+  sensitive = true
+}

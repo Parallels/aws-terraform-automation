@@ -115,6 +115,16 @@ resource "terraform_data" "mac" {
   }
 
   provisioner "remote-exec" {
+    inline = [
+      "rm ~/export.sh",
+      "touch ~/export.sh & chmod +x ~/export.sh",
+      "echo \"export PARALLELS_KEY=${var.parallels_key}\" >> ~/export.sh",
+      "echo \"export PARALLELS_USER_EMAIL=${var.parallels_user_email}\" >> ~/export.sh",
+      "echo \"export PARALLELS_USER_PASSWORD=${var.parallels_user_password}\" >> ~/export.sh",
+    ]
+  }
+
+  provisioner "remote-exec" {
     script = "./scripts/init.sh"
   }
 
