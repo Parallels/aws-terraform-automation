@@ -15,7 +15,7 @@ resource "aws_key_pair" "generated_key" {
 resource "aws_ec2_host" "mac" {
   count = var.machines_count
 
-  instance_type     = var.use_intel ? "mac1.metal" : "mac2.metal"
+  instance_type     = var.use_intel ? "mac1.metal" : var.use_m2_pro ? "mac2-m2pro.metal" : "mac2.metal"
   availability_zone = data.aws_availability_zones.available.names[var.aws_availability_zone_index]
   host_recovery     = "off"
   auto_placement    = "on"
@@ -65,6 +65,22 @@ resource "aws_security_group" "ssh" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "SSH from VPC"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "VNC from VPC"
+    from_port   = 5900
+    to_port     = 5900
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -94,13 +110,13 @@ resource "aws_instance" "mac" {
   }
 }
 
-resource "time_sleep" "wait_60_seconds" {
+resource "time_sleep" "wait_120_seconds" {
   depends_on = [aws_instance.mac]
 
-  create_duration = "30s"
+  create_duration = "120s"
 }
 
-resource "terraform_data" "mac" {
+resource "terraform_data" "init_script" {
   count = var.machines_count
 
   triggers_replace = {
@@ -115,9 +131,31 @@ resource "terraform_data" "mac" {
   }
 
   provisioner "remote-exec" {
+    script = "./scripts/init.sh"
+  }
+
+  depends_on = [
+    time_sleep.wait_120_seconds
+  ]
+}
+
+resource "terraform_data" "install_parallels_desktop" {
+  count = var.install_parallels_desktop ? var.machines_count : 0
+
+  triggers_replace = {
+    file_hash = md5(file("./scripts/install-parallels-desktop.sh"))
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.mac.private_key_pem
+    host        = aws_instance.mac[count.index].public_ip
+  }
+
+  provisioner "remote-exec" {
     inline = [
-      "rm ~/export.sh",
-      "touch ~/export.sh & chmod +x ~/export.sh",
+      "if [ -f ~/export.sh ]; then rm -f ~/export.sh; fi",
       "echo \"export PARALLELS_KEY=${var.parallels_key}\" >> ~/export.sh",
       "echo \"export PARALLELS_USER_EMAIL=${var.parallels_user_email}\" >> ~/export.sh",
       "echo \"export PARALLELS_USER_PASSWORD=${var.parallels_user_password}\" >> ~/export.sh",
@@ -125,8 +163,105 @@ resource "terraform_data" "mac" {
   }
 
   provisioner "remote-exec" {
-    script = "./scripts/init.sh"
+    script = "./scripts/install-parallels-desktop.sh"
   }
 
-  depends_on = [time_sleep.wait_60_seconds]
+  depends_on = [
+    terraform_data.init_script
+  ]
 }
+
+resource "terraform_data" "vnc_enable" {
+  count = var.enable_vnc ? var.machines_count : 0
+
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.mac.private_key_pem
+    host        = aws_instance.mac[count.index].public_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -f ~/export.sh ]; then rm -f ~/export.sh; fi",
+      "echo \"export VNC_USER_PASSWORD=${var.vnc_user_password}\" >> ~/export.sh",
+    ]
+  }
+
+  provisioner "remote-exec" {
+    script = "./scripts/enable-vnc.sh"
+  }
+
+  depends_on = [
+    terraform_data.init_script
+  ]
+}
+
+resource "terraform_data" "ubuntu" {
+  count = var.install_parallels_desktop ? var.machines_count : 0
+
+  triggers_replace = [
+    var.ubuntu_machines_count
+  ]
+
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.mac.private_key_pem
+    host        = aws_instance.mac[count.index].public_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -f ~/export.sh ]; then rm -f ~/export.sh; fi",
+      "echo \"export MACHINE_COUNT=${var.ubuntu_machines_count}\" >> ~/export.sh",
+      "echo \"export MACHINE_NAME=${var.ubuntu_machine_name != "" ? "${replace(var.ubuntu_machine_name, " ", "\\ ")}" : "Ubuntu"}\" >> ~/export.sh",
+      "echo \"export UBUNTU_VERSION=${var.ubuntu_machine_os_version}\" >> ~/export.sh",
+      "echo \"export CPU_COUNT=${var.ubuntu_machine_cpu_count}\" >> ~/export.sh",
+      "echo \"export MEM_SIZE=${var.ubuntu_machine_mem_size}\" >> ~/export.sh",
+      "echo \"export DISK_SIZE=${var.ubuntu_machine_disk_size}\" >> ~/export.sh",
+    ]
+  }
+
+  provisioner "remote-exec" {
+    script = "./scripts/create-ubuntu-vm.sh"
+  }
+
+  depends_on = [
+    terraform_data.install_parallels_desktop
+  ]
+}
+
+resource "terraform_data" "macos" {
+  count = var.install_parallels_desktop ? var.machines_count : 0
+
+  triggers_replace = [
+    var.macos_machines_count
+  ]
+
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.mac.private_key_pem
+    host        = aws_instance.mac[count.index].public_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -f ~/export.sh ]; then rm -f ~/export.sh; fi",
+      "echo \"export MACHINE_COUNT=${var.macos_machines_count}\" >> ~/export.sh",
+      "echo \"export MACHINE_NAME=${var.macos_machine_name != "" ? "${replace(var.macos_machine_name, " ", "\\ ")}" : "macOS"}\" >> ~/export.sh",
+      "echo \"export IPSW_URL=${var.macos_ipsw_url}\" >> ~/export.sh",
+      "echo \"export IPSW_CHECKSUM=${var.macos_ipsw_checksum}\" >> ~/export.sh",
+    ]
+  }
+
+  provisioner "remote-exec" {
+    script = "./scripts/create-macos-vm.sh"
+  }
+
+  depends_on = [
+    terraform_data.install_parallels_desktop
+  ]
+}
+
