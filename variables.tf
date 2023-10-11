@@ -17,7 +17,6 @@ variable "aws_availability_zone_index" {
   default = 0
 }
 
-
 variable "script_version" {
   type    = string
   default = "1.0.0"
@@ -123,4 +122,24 @@ variable "ubuntu_machine_mem_size" {
 variable "ubuntu_machine_disk_size" {
   type    = number
   default = 65536
+}
+
+variable "macos_machines_count" {
+  type    = number
+  default = 0
+}
+
+variable "macos_machine_name" {
+  type    = string
+  default = ""
+}
+
+variable "macos_ipsw_url" {
+  type    = string
+  default = "https://updates.cdn-apple.com/2023SummerFCS/fullrestores/032-69606/D3E05CDF-E105-434C-A4A1-4E3DC7668DD0/UniversalMac_13.5_22G74_Restore.ipsw"
+}
+
+variable "macos_ipsw_checksum" {
+  type    = string
+  default = "sha256:a42a5ba126a4a35bae9f3dcd64565abc2232e9f3954c658cf5cab5bd92f9d191"
 }

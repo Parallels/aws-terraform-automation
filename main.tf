@@ -232,3 +232,36 @@ resource "terraform_data" "ubuntu" {
   ]
 }
 
+resource "terraform_data" "macos" {
+  count = var.install_parallels_desktop ? var.machines_count : 0
+
+  triggers_replace = [
+    var.macos_machines_count
+  ]
+
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = tls_private_key.mac.private_key_pem
+    host        = aws_instance.mac[count.index].public_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -f ~/export.sh ]; then rm -f ~/export.sh; fi",
+      "echo \"export MACHINE_COUNT=${var.macos_machines_count}\" >> ~/export.sh",
+      "echo \"export MACHINE_NAME=${var.macos_machine_name != "" ? "${replace(var.macos_machine_name, " ", "\\ ")}" : "macOS"}\" >> ~/export.sh",
+      "echo \"export IPSW_URL=${var.macos_ipsw_url}\" >> ~/export.sh",
+      "echo \"export IPSW_CHECKSUM=${var.macos_ipsw_checksum}\" >> ~/export.sh",
+    ]
+  }
+
+  provisioner "remote-exec" {
+    script = "./scripts/create-macos-vm.sh"
+  }
+
+  depends_on = [
+    terraform_data.install_parallels_desktop
+  ]
+}
+
