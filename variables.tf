@@ -25,7 +25,7 @@ variable "script_version" {
 
 variable "aws_ami_id" {
   type    = string
-  default = ""
+  default = "" # MacOS Ventura
 }
 
 variable "machines_count" {
@@ -59,6 +59,16 @@ variable "use_intel" {
   default = false
 }
 
+variable "use_m2_pro" {
+  type    = bool
+  default = false
+}
+
+variable "install_parallels_desktop" {
+  type    = bool
+  default = false
+}
+
 variable "parallels_key" {
   type      = string
   sensitive = true
@@ -72,4 +82,45 @@ variable "parallels_user_email" {
 variable "parallels_user_password" {
   type      = string
   sensitive = true
+}
+
+variable "enable_vnc" {
+  type    = bool
+  default = false
+}
+
+variable "vnc_user_password" {
+  type      = string
+  sensitive = true
+  default   = "parallels"
+}
+
+variable "ubuntu_machines_count" {
+  type    = number
+  default = 0
+}
+
+variable "ubuntu_machine_name" {
+  type    = string
+  default = ""
+}
+
+variable "ubuntu_machine_os_version" {
+  type    = string
+  default = "22.04.3"
+}
+
+variable "ubuntu_machine_cpu_count" {
+  type    = number
+  default = 2
+}
+
+variable "ubuntu_machine_mem_size" {
+  type    = number
+  default = 2048
+}
+
+variable "ubuntu_machine_disk_size" {
+  type    = number
+  default = 65536
 }

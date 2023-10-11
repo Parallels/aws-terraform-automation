@@ -29,7 +29,17 @@ For running the terraform script, you should:
     machines_count              = 1 // How many machines do you want to deploy
     ```
 
+
     __Attention:__ At the moment of writing, only the US region has the new ARM Mac hardware and even there not all availability zones have them, check [here](https://aws.amazon.com/ec2/instance-types/mac/) before you choose.
+
+by default the script will try to get the latest AMI available but you can set this manually by adding your own AMI ID or a specific version of the AMI, for example:
+
+    ```json
+    mac_ami_id = "ami-09b2201fa15c4cb83"
+    ```
+
+    __Attention:__ The AMI ID is different for each region and availability zone, so make sure you use the correct one.
+    
 * Run terraform init:
   
   ```bash

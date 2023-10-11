@@ -1,66 +1,54 @@
-# Login in into parallels website
-function login() {
-  echo "Logging in into parallels website"
-  echo $PARALLELS_USER_PASSWORD >~/parallels_password.txt
-  /Applications/Parallels\ Desktop.app/Contents/MacOS/Parallels\ Service service_restart
-  /Applications/Parallels\ Desktop.app/Contents/MacOS/prlsrvctl web-portal signin $PARALLELS_USER_EMAIL --read-passwd ~/parallels_password.txt
-  rm ~/parallels_password.txt
+#!/bin/bash
+function install_packer() {
+  echo "Checking if packer is installed"
+  which packer
+  packer_exit_code=$?
+  if [ $packer_exit_code -eq 0 ]; then
+    echo "Packer is already installed"
+    return
+  fi
+
+  echo "Installing packer"
+  /opt/homebrew/bin/brew install packer
 }
 
-function install_key() {
-  echo "Installing the key"
-  /Applications/Parallels\ Desktop.app/Contents/MacOS/Parallels\ Service service_restart
-  /Applications/Parallels\ Desktop.app/Contents/MacOS/prlsrvctl install-license --key $PARALLELS_KEY --activate-online-immediately
+function install_git() {
+  echo "Checking if git is installed"
+  which git
+  git_exit_code=$?
+  if [ $git_exit_code -eq 0 ]; then
+    echo "Git is already installed"
+    return
+  fi
+
+  echo "Installing git"
+  /opt/homebrew/bin/brew install git
 }
 
-function restart_service_on_login() {
-  echo "Restarting the parallels service"
-  grep -qxF '/Applications/Parallels\ Desktop.app/Contents/MacOS/Parallels\ Service service_restart' ~/.zshrc || echo '/Applications/Parallels\ Desktop.app/Contents/MacOS/Parallels\ Service service_restart' >>~/.zshrc
-  source ~/.zshrc
+function install_homebrew() {
+  echo "Checking if homebrew is installed"
+  which brew
+  brew_exit_code=$?
+  if [ $brew_exit_code -eq 0 ]; then
+    echo "Homebrew is already installed"
+    return
+  fi
+
+  echo "Installing homebrew"
+  sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
 #check if export.sh exists
-if [ -f ./export.sh ]; then
+if [ -f ~/export.sh ]; then
   echo "export.sh file exists, setting the environment variables"
-  chmod +x ./export.sh
-  source ./export.sh
+  chmod +x ~/export.sh
+  source ~/export.sh
 fi
 
-# checking the type of cpu
-cpu=$(sysctl -n machdep.cpu.brand_string)
-if [[ $cpu == *"Apple"* ]]; then
-  echo "Apple Silicon detected"
+echo "Installing Dependencies"
 
-  # Installing rosetta
-  /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-  # Installing parallels desktop using command line
-  /opt/homebrew/bin/brew install parallels
-  # Restarting the parallels service
-  /Applications/Parallels\ Desktop.app/Contents/MacOS/Parallels\ Service service_restart
+install_homebrew
+install_packer
+install_git
 
-  login
-  install_key
-
-  # Getting the latest ipsw file
-  if [ -f ~/ios.ipsw ]; then
-    echo "ios.ipsw file exists, not downloading it again"
-  else
-    echo "ios.ipsw file does not exist, getting it from the internet"
-    url=$(/Applications/Parallels\ Desktop.app/Contents/MacOS/prl_macvm_create --getipswurl)
-    curl -o ~/ios.ipsw $url
-  fi
-
-  # Creating two virtual machines
-  echo "Creating first virtual machine"
-  /Applications/Parallels\ Desktop.app/Contents/MacOS/prl_macvm_create ~/ios.ipsw ~/macOS_1.macvm
-  echo "Creating second virtual machine"
-  /Applications/Parallels\ Desktop.app/Contents/MacOS/prl_macvm_create ~/ios.ipsw ~/macOS_2.macvm
-  echo "Virtual machines created"
-else
-  echo "Intel CPU detected"
-  # Installing parallels desktop using command line
-  /usr/local/bin/brew install parallels
-  # TODO: Add the code to create two virtual machines
-fi
-
-restart_service_on_login
+if [ -f ~/export.sh ]; then rm -f ~/export.sh; fi
