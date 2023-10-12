@@ -1,10 +1,6 @@
-name: PR
+name: Terraform Build and Validate
 
 on:
-  push:
-    branches:
-      - main
-      - release/*
   pull_request:
     branches:
       - main
