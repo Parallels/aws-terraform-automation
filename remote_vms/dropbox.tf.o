@@ -1,0 +1,66 @@
+resource "parallels-desktop_remote_vm" "vm" {
+  depends_on = [
+    null_resource.import_image
+  ]
+
+  orchestrator       = local.orchestrator
+  name               = local.vm_name
+  owner              = "ec2-user"
+  catalog_id         = lower(data.coder_parameter.image_name.value)
+  version            = terraform_data.image_hash.output
+  catalog_connection = "host=root:${local.parallels_secrets["ROOT_PASSWORD"]}@${local.devops_host}"
+  architecture       = local.architecture == "amd64" ? "x86_64" : "arm64"
+  path               = "/Volumes/Store/Parallels"
+  keep_running       = data.coder_workspace.me.start_count == 1
+  force_changes      = true
+
+  lifecycle {
+    ignore_changes = [version]
+  }
+
+  authenticator {
+    username = "root"
+    password = local.parallels_secrets["ROOT_PASSWORD"]
+  }
+
+  # This will contain some common configuration for the VM
+  # like if we should start it headless or not
+  config {
+    start_headless     = true
+    enable_rosetta     = true
+    pause_idle         = false
+    auto_start_on_host = false
+  }
+
+  # This will contain a configuration for the specs of the VM
+  specs {
+    cpu_count   = "1"
+    memory_size = "8192"
+    force       = true
+  }
+
+  reverse_proxy_host {
+    port = random_integer.vnc_forward_port.result
+
+    tcp_route {
+      target_port = "5900"
+    }
+  }
+
+  post_processor_script {
+    always_run_on_update = true
+    inline               = local.post_processor_scripts[local.platform]
+  }
+}
+
+resource "parallels-desktop_vm_state" "vm" {
+  authenticator {
+    username = "root"
+    password = local.parallels_secrets["ROOT_PASSWORD"]
+  }
+
+  id           = parallels-desktop_remote_vm.vm.id
+  orchestrator = local.orchestrator
+  operation    = data.coder_workspace.me.start_count == 1 ? "start" : "stop"
+  ensure_state = true
+}
